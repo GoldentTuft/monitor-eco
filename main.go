@@ -41,9 +41,16 @@ func monitorSwitch(ms uint) {
 	fmt.Println(res)
 }
 func main() {
+	const start = 5
+	const cycle = 60
+	for i := 0; i < start; i++ {
+		fmt.Printf("\r消灯まで%d秒前", start-i)
+		time.Sleep(1 * time.Second)
+	}
+	fmt.Printf("\r\n")
 	for {
 		monitorSwitch(DISPLAY_OFF)
-		time.Sleep(60 * time.Second)
+		time.Sleep(cycle * time.Second)
 	}
 
 	// これもだめ。
