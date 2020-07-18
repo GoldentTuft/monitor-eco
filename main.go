@@ -32,25 +32,28 @@ func init() {
 }
 
 func monitorSwitch(ms uint) {
-	res, _, _ := syscall.Syscall6(postMessageProc.Addr(), 4,
+	syscall.Syscall6(postMessageProc.Addr(), 4,
 		uintptr(HWND_BROADCAST),
 		uintptr(WM_SYSCOMMAND),
 		uintptr(SC_MONITORPOWER),
 		uintptr(ms),
 		0, 0)
-	fmt.Println(res)
 }
+
 func main() {
 	const start = 5
-	const cycle = 60
+	const cycle = 60 * time.Second
 	for i := 0; i < start; i++ {
 		fmt.Printf("\r消灯まで%d秒前", start-i)
 		time.Sleep(1 * time.Second)
 	}
 	fmt.Printf("\r\n")
+	var duration time.Duration
 	for {
 		monitorSwitch(DISPLAY_OFF)
-		time.Sleep(cycle * time.Second)
+		time.Sleep(cycle)
+		duration += cycle
+		fmt.Printf("\r%v経過", duration)
 	}
 
 	// これもだめ。
