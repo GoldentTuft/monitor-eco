@@ -42,6 +42,12 @@ type Pos struct {
 	X, Y int32
 }
 
+func (p Pos) distance(pos Pos) float64 {
+	xd := p.X - pos.X
+	yd := p.Y - pos.Y
+	return math.Sqrt(math.Pow(float64(xd), 2) + math.Pow(float64(yd), 2))
+}
+
 func getCursorPos() (Pos, error) {
 	var pos Pos
 	ret, _, err := procGetCursorPos.Call(uintptr(unsafe.Pointer(&pos)))
@@ -58,48 +64,61 @@ func clearLine() {
 func main() {
 	// カウントダウン
 	const countdownStart = 5
-	for i := 0; i < countdownStart; i++ {
+	for i := range countdownStart {
 		clearLine()
 		fmt.Printf("消灯まで%d秒前", countdownStart-i)
 		time.Sleep(1 * time.Second)
 	}
 
-	// 指定間隔でモニターを消す
+	// 経過時間を表示
 	go func() {
-		const cycle = 60 * time.Second
-		var duration time.Duration
+		const loopCycle = 1 * time.Second
+		var elapsedTime time.Duration
 		for {
-			monitorSwitch(DISPLAY_OFF)
-			var cycleCount time.Duration
-			for cycleCount = 0; cycleCount < cycle; {
+			for {
 				clearLine()
-				fmt.Printf("\r%v経過", duration)
+				fmt.Printf("\r%v経過", elapsedTime)
 				time.Sleep(1 * time.Second)
-				cycleCount += 1 * time.Second
-				duration += 1 * time.Second
+				elapsedTime += 1 * time.Second
 			}
 		}
 	}()
 
-	// カーソル指定距離以上移動したら終了
-	exitDistance := 400.0
-	startPos, err := getCursorPos()
+	const exitDistance = 400.0 // カーソルが移動したら終了する距離
+	minDistance := 5.0         // ちょっとした移動は無視
+	totalDistance := 0.0
+	const loopCycle = 1 * time.Second
+	var monitorOffCount time.Duration
+	const monitorOffInterval = 60 * time.Second // n秒間カーソル移動がなければモニターを再度消す
+	prevPos, err := getCursorPos()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
+	monitorSwitch(DISPLAY_OFF)
 	for {
-		pos, err := getCursorPos()
+		time.Sleep(loopCycle)
+		monitorOffCount += loopCycle
+		if monitorOffCount >= monitorOffInterval {
+			monitorSwitch(DISPLAY_OFF)
+			monitorOffCount = 0
+		}
+
+		currentPos, err := getCursorPos()
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
-		xd := pos.X - startPos.X
-		yd := pos.Y - startPos.Y
-		d := math.Sqrt(math.Pow(float64(xd), 2) + math.Pow(float64(yd), 2))
-		if d >= exitDistance {
+		d := currentPos.distance(prevPos)
+		// モニターをoffにするタイマーをリセットする
+		if d >= minDistance {
+			totalDistance += d
+			monitorOffCount = 0
+		}
+		// 指定距離で終了
+		if totalDistance >= exitDistance {
 			return
 		}
-		time.Sleep(1 * time.Second)
+		prevPos = currentPos
 	}
 }
